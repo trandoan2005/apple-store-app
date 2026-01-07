@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+// app/(tabs)/profile.tsx - SIMPLIFIED VERSION
+import { useState } from 'react';
 import { 
   View, 
   Text, 
@@ -6,206 +7,192 @@ import {
   Image, 
   Pressable, 
   StyleSheet, 
-  Alert,
-  Switch
+  ActivityIndicator,
+  Modal
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function ProfileScreen() {
-  const [user, setUser] = useState<any>(null);
-  const [darkMode, setDarkMode] = useState(false);
-  const [notifications, setNotifications] = useState(true);
+  const { user, userProfile, loading, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  useEffect(() => {
-    loadUserData();
-  }, []);
-
-  const loadUserData = async () => {
+  // Hàm logout đơn giản
+  const handleLogout = async () => {
+    console.log('🚀 [Profile] Starting logout...');
+    setIsLoggingOut(true);
+    setShowConfirm(false);
+    
     try {
-      const userData = await AsyncStorage.getItem('user');
-      if (userData) {
-        setUser(JSON.parse(userData));
-      } else {
-        // Default user data
-        setUser({
-          name: 'Nguyễn Văn A',
-          email: 'user@example.com',
-          phone: '0987654321',
-          address: 'Hà Nội, Việt Nam',
-          avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&h=400&fit=crop'
-        });
-      }
+      // 1. Gọi logout từ context
+      await logout();
+      console.log('✅ [Profile] Logout successful');
+      
+      // 2. Chuyển thẳng về login screen
+      router.replace('/(auth)/login');
+      
     } catch (error) {
-      console.error('Error loading user:', error);
+      console.error('❌ [Profile] Logout error:', error);
+      // Vẫn chuyển về login dù có lỗi
+      router.replace('/(auth)/login');
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
-  const handleLogout = async () => {
-    Alert.alert(
-      'Đăng xuất',
-      'Bạn có chắc chắn muốn đăng xuất?',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        { 
-          text: 'Đăng xuất', 
-          onPress: async () => {
-            await AsyncStorage.removeItem('userToken');
-            router.replace('/(auth)/login');
-          }
-        }
-      ]
+  // Hiển thị loading
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Đang tải...</Text>
+      </View>
     );
-  };
-
-  const menuItems = [
-    {
-      id: '1',
-      title: 'Đơn hàng của tôi',
-      icon: 'bag-outline',
-      color: '#007AFF',
-      onPress: () => Alert.alert('Đơn hàng', 'Danh sách đơn hàng')
-    },
-    {
-      id: '2',
-      title: 'Địa chỉ giao hàng',
-      icon: 'location-outline',
-      color: '#FF9500',
-      onPress: () => Alert.alert('Địa chỉ', 'Quản lý địa chỉ giao hàng')
-    },
-    {
-      id: '3',
-      title: 'Phương thức thanh toán',
-      icon: 'card-outline',
-      color: '#32D74B',
-      onPress: () => Alert.alert('Thanh toán', 'Quản lý phương thức thanh toán')
-    },
-    {
-      id: '4',
-      title: 'Yêu thích',
-      icon: 'heart-outline',
-      color: '#FF2D55',
-      onPress: () => Alert.alert('Yêu thích', 'Sản phẩm yêu thích')
-    },
-    {
-      id: '5',
-      title: 'Cài đặt thông báo',
-      icon: 'notifications-outline',
-      color: '#5856D6',
-      onPress: () => Alert.alert('Thông báo', 'Cài đặt thông báo')
-    },
-    {
-      id: '6',
-      title: 'Trung tâm trợ giúp',
-      icon: 'help-circle-outline',
-      color: '#5AC8FA',
-      onPress: () => Alert.alert('Trợ giúp', 'Trung tâm trợ giúp')
-    },
-  ];
+  }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Tài khoản</Text>
-        <Pressable onPress={handleLogout} style={styles.logoutButton}>
-          <Ionicons name="log-out-outline" size={22} color="#FF3B30" />
-        </Pressable>
+        <Text style={styles.title}>Tài khoản</Text>
       </View>
 
       {/* Profile Info */}
       <View style={styles.profileCard}>
-        <Image
-          source={{ uri: user?.avatar }}
-          style={styles.avatar}
+        <Image 
+          source={{ 
+            uri: user 
+              ? `https://ui-avatars.com/api/?name=${user.email}&background=007AFF&color=fff&size=150`
+              : 'https://ui-avatars.com/api/?name=Guest&background=8E8E93&color=fff&size=150'
+          }} 
+          style={styles.avatar} 
         />
-        <View style={styles.profileInfo}>
-          <Text style={styles.userName}>{user?.name}</Text>
-          <Text style={styles.userEmail}>{user?.email}</Text>
-          <Text style={styles.userPhone}>{user?.phone}</Text>
+        
+        <Text style={styles.name}>
+          {user ? (userProfile?.displayName || user.email?.split('@')[0] || 'Người dùng') : 'Khách'}
+        </Text>
+        
+        <Text style={styles.email}>
+          {user ? user.email : 'Chưa đăng nhập'}
+        </Text>
+        
+        <View style={styles.status}>
+          <Ionicons 
+            name={user ? "checkmark-circle" : "close-circle"} 
+            size={16} 
+            color={user ? "#34C759" : "#FF3B30"} 
+          />
+          <Text style={[styles.statusText, { color: user ? "#34C759" : "#FF3B30" }]}>
+            {user ? 'Đã đăng nhập' : 'Chưa đăng nhập'}
+          </Text>
         </View>
-        <Pressable 
-          style={styles.editButton}
-          onPress={() => Alert.alert('Chỉnh sửa', 'Chỉnh sửa thông tin cá nhân')}
-        >
-          <Ionicons name="create-outline" size={20} color="#007AFF" />
+      </View>
+
+      {/* Action Buttons */}
+      <View style={styles.actions}>
+        {!user ? (
+          <Pressable 
+            style={styles.loginButton}
+            onPress={() => router.push('/(auth)/login')}
+          >
+            <Ionicons name="log-in-outline" size={20} color="#fff" />
+            <Text style={styles.loginButtonText}>Đăng nhập / Đăng ký</Text>
+          </Pressable>
+        ) : (
+          <>
+            <Pressable 
+              style={styles.editButton}
+              onPress={() => router.push('/edit-profile')}
+            >
+              <Ionicons name="create-outline" size={20} color="#007AFF" />
+              <Text style={styles.editButtonText}>Chỉnh sửa hồ sơ</Text>
+            </Pressable>
+            
+            <Pressable 
+              style={styles.logoutButton}
+              onPress={() => setShowConfirm(true)}
+              disabled={isLoggingOut}
+            >
+              <Ionicons name="log-out-outline" size={20} color="#FF3B30" />
+              <Text style={styles.logoutButtonText}>
+                {isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}
+              </Text>
+            </Pressable>
+          </>
+        )}
+      </View>
+
+      {/* Simple Menu */}
+      <View style={styles.menu}>
+        <Pressable style={styles.menuItem}>
+          <Ionicons name="bag-outline" size={24} color="#007AFF" />
+          <Text style={styles.menuText}>Đơn hàng của tôi</Text>
+          <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+        </Pressable>
+        
+        <Pressable style={styles.menuItem}>
+          <Ionicons name="heart-outline" size={24} color="#007AFF" />
+          <Text style={styles.menuText}>Sản phẩm yêu thích</Text>
+          <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+        </Pressable>
+        
+        <Pressable style={styles.menuItem}>
+          <Ionicons name="help-circle-outline" size={24} color="#007AFF" />
+          <Text style={styles.menuText}>Trung tâm trợ giúp</Text>
+          <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
         </Pressable>
       </View>
 
-      {/* Stats */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>0</Text>
-          <Text style={styles.statLabel}>Đơn hàng</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>0</Text>
-          <Text style={styles.statLabel}>Yêu thích</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>0</Text>
-          <Text style={styles.statLabel}>Đánh giá</Text>
-        </View>
-      </View>
-
-      {/* Menu Items */}
-      <View style={styles.menuSection}>
-        <Text style={styles.sectionTitle}>Tài khoản của tôi</Text>
-        {menuItems.map((item) => (
-          <Pressable 
-            key={item.id} 
-            style={styles.menuItem}
-            onPress={item.onPress}
-          >
-            <View style={[styles.menuIcon, { backgroundColor: `${item.color}20` }]}>
-              <Ionicons name={item.icon as any} size={20} color={item.color} />
+      {/* Confirm Modal */}
+      <Modal
+        visible={showConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowConfirm(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Đăng xuất</Text>
+            <Text style={styles.modalMessage}>Bạn có chắc muốn đăng xuất?</Text>
+            
+            <View style={styles.modalButtons}>
+              <Pressable 
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowConfirm(false)}
+              >
+                <Text style={styles.cancelButtonText}>Hủy</Text>
+              </Pressable>
+              
+              <Pressable 
+                style={[styles.modalButton, styles.confirmButton]}
+                onPress={handleLogout}
+                disabled={isLoggingOut}
+              >
+                <Text style={styles.confirmButtonText}>
+                  {isLoggingOut ? 'Đang xử lý...' : 'Đăng xuất'}
+                </Text>
+              </Pressable>
             </View>
-            <Text style={styles.menuText}>{item.title}</Text>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
-          </Pressable>
-        ))}
-      </View>
-
-      {/* Settings */}
-      <View style={styles.settingsSection}>
-        <Text style={styles.sectionTitle}>Cài đặt</Text>
-        
-        <View style={styles.settingItem}>
-          <View style={styles.settingLeft}>
-            <Ionicons name="moon-outline" size={22} color="#5856D6" />
-            <Text style={styles.settingText}>Chế độ tối</Text>
           </View>
-          <Switch
-            value={darkMode}
-            onValueChange={setDarkMode}
-            trackColor={{ false: '#767577', true: '#81b0ff' }}
-            thumbColor={darkMode ? '#5856D6' : '#f4f3f4'}
-          />
         </View>
+      </Modal>
 
-        <View style={styles.settingItem}>
-          <View style={styles.settingLeft}>
-            <Ionicons name="notifications-outline" size={22} color="#FF9500" />
-            <Text style={styles.settingText}>Thông báo</Text>
-          </View>
-          <Switch
-            value={notifications}
-            onValueChange={setNotifications}
-            trackColor={{ false: '#767577', true: '#81b0ff' }}
-            thumbColor={notifications ? '#FF9500' : '#f4f3f4'}
-          />
-        </View>
-      </View>
-
-      {/* App Info */}
-      <View style={styles.appInfo}>
-        <Text style={styles.appVersion}>Phiên bản 1.0.0</Text>
-        <Text style={styles.appCopyright}>© 2024 Apple Store. All rights reserved.</Text>
-      </View>
-    </ScrollView>
+      {/* Debug Button (tạm thời) */}
+      {user && (
+        <Pressable 
+          style={styles.debugButton}
+          onPress={() => {
+            console.log('🔧 DEBUG: Current user:', user.email);
+            // Force logout
+            router.replace('/(auth)/login');
+          }}
+        >
+          <Text style={styles.debugText}>DEBUG: Force to Login</Text>
+        </Pressable>
+      )}
+    </View>
   );
 }
 
@@ -214,182 +201,200 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f7',
   },
-  header: {
-    paddingTop: 50,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    backgroundColor: '#fff',
-    flexDirection: 'row',
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5e7',
+    backgroundColor: '#f5f5f7',
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#8E8E93',
+  },
+  header: {
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    backgroundColor: '#fff',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
     color: '#000',
-  },
-  logoutButton: {
-    padding: 8,
   },
   profileCard: {
     backgroundColor: '#fff',
-    margin: 16,
+    margin: 20,
     padding: 20,
     borderRadius: 16,
-    flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 3,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    marginRight: 16,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginBottom: 16,
   },
-  profileInfo: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 20,
-    fontWeight: '700',
+  name: {
+    fontSize: 22,
+    fontWeight: 'bold',
     color: '#000',
     marginBottom: 4,
   },
-  userEmail: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 2,
+  email: {
+    fontSize: 16,
+    color: '#007AFF',
+    marginBottom: 12,
   },
-  userPhone: {
+  status: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusText: {
     fontSize: 14,
-    color: '#666',
+    fontWeight: '500',
+  },
+  actions: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    gap: 12,
+  },
+  loginButton: {
+    backgroundColor: '#007AFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  loginButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   editButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f5f5f7',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statsContainer: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 16,
+    backgroundColor: '#f0f8ff',
     flexDirection: 'row',
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  statItem: {
-    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#007AFF',
   },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: '800',
+  editButtonText: {
     color: '#007AFF',
-    marginBottom: 4,
+    fontSize: 16,
+    fontWeight: '600',
   },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-  },
-  statDivider: {
-    width: 1,
-    height: '100%',
-    backgroundColor: '#e5e5e7',
-  },
-  menuSection: {
+  logoutButton: {
     backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FF3B30',
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#000',
-    marginBottom: 16,
+  logoutButtonText: {
+    color: '#FF3B30',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  menu: {
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    borderRadius: 12,
+    paddingVertical: 8,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#f5f5f7',
-  },
-  menuIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
   },
   menuText: {
     flex: 1,
     fontSize: 16,
     color: '#000',
-    fontWeight: '500',
+    marginLeft: 16,
   },
-  settingsSection: {
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
     backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginBottom: 16,
     borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f5f5f7',
-  },
-  settingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  settingText: {
-    fontSize: 16,
-    color: '#000',
-    fontWeight: '500',
-    marginLeft: 12,
-  },
-  appInfo: {
-    alignItems: 'center',
     padding: 24,
+    width: '100%',
+    maxWidth: 340,
   },
-  appVersion: {
-    fontSize: 14,
-    color: '#666',
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000',
     marginBottom: 8,
   },
-  appCopyright: {
-    fontSize: 12,
-    color: '#999',
+  modalMessage: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#f5f5f7',
+  },
+  cancelButtonText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  confirmButton: {
+    backgroundColor: '#FF3B30',
+  },
+  confirmButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Debug
+  debugButton: {
+    margin: 20,
+    padding: 12,
+    backgroundColor: '#FF9500',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  debugText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

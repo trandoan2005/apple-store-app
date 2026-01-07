@@ -1,30 +1,77 @@
 {
   "expo": {
-    "name": "MyApp",
-    "slug": "MyApp",
+    "name": "Apple Store",
+    "slug": "apple-store-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "scheme": "applestore",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "ios": {
-      "supportsTablet": true
+    
+    // Thêm splash screen tốt hơn
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF",
+      "dark": {
+        "image": "./assets/images/splash-icon-dark.png",
+        "backgroundColor": "#000000"
+      }
     },
+    
+    // Asset bundling
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    
+    // IOS configuration
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yourcompany.applestore",
+      "buildNumber": "1.0.0",
+      "infoPlist": {
+        "NSCameraUsageDescription": "App cần truy cập camera để chụp ảnh sản phẩm",
+        "NSPhotoLibraryUsageDescription": "App cần truy cập thư viện ảnh để tải ảnh sản phẩm",
+        "NSMicrophoneUsageDescription": "App cần truy cập microphone để tìm kiếm bằng giọng nói",
+        "UIBackgroundModes": ["remote-notification"]
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      }
+    },
+    
+    // Android configuration
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "monochromeImage": "./assets/images/android-icon-monochrome.png",
+        "backgroundColor": "#FFFFFF"
       },
+      "package": "com.yourcompany.applestore",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.INTERNET"
+      ],
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "resize"
     },
+    
+    // Web configuration
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro"
     },
+    
+    // Plugins - THÊM QUAN TRỌNG
     "plugins": [
       "expo-router",
       [
@@ -35,15 +82,92 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
           "dark": {
+            "image": "./assets/images/splash-icon-dark.png",
             "backgroundColor": "#000000"
           }
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      // Thêm các plugin cần thiết
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "App cần truy cập ảnh để tải ảnh sản phẩm",
+          "cameraPermission": "App cần truy cập camera để chụp ảnh sản phẩm"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#007AFF",
+          "sounds": ["./assets/sounds/notification.wav"]
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Cho phép truy cập vị trí để tìm cửa hàng gần nhất"
+        }
+      ],
+      [
+        "expo-av"
+      ],
+      [
+        "@config-plugins/react-native-blob-util"
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0"
+          },
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
+      ]
     ],
+    
+    // Extra configuration
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id-here"
+      },
+      "firebase": {
+        "apiKey": "AIzaSyD4JnSVAccNUSp6_0N4-A5zxcHQ3OYmiHU",
+        "authDomain": "applestore-app-85928.firebaseapp.com",
+        "projectId": "applestore-app-85928",
+        "storageBucket": "applestore-app-85928.firebasestorage.app",
+        "messagingSenderId": "94862180670",
+        "appId": "1:94862180670:web:97fe082932e07a17d8ec6f",
+        "measurementId": "G-XHY8R8LV0N"
+      }
+    },
+    
+    // Updates
+    "updates": {
+      "url": "https://u.expo.dev/your-project-id",
+      "fallbackToCacheTimeout": 3000
+    },
+    
+    // Runtime version
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    
+    // Experiments
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true
+      "reactCompiler": true,
+      "tsconfigPaths": true
+    },
+    
+    // Development settings
+    "developmentClient": {
+      "silentLaunch": true
     }
   }
 }

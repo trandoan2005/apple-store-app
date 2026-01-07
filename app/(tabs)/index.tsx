@@ -1,250 +1,218 @@
-// app/(tabs)/index.tsx - APPLE STORE PREMIUM HOME
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   ScrollView,
   Image,
-  Pressable,
   StyleSheet,
   Alert,
   TextInput,
   Platform,
   Dimensions,
+  ActivityIndicator,
+  RefreshControl,
+  Animated,
+  Easing,
+  TouchableOpacity,
+  StatusBar
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
+import { useAuth } from '../../contexts/AuthContext';
+import { productService, Product, Category, formatPrice } from '../../services/productService';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+const HEADER_HEIGHT = Platform.OS === 'ios' ? 120 : 100;
+const SEARCH_HEIGHT = 56;
 
-// Apple Store chính hãng data
-const HERO_BANNER = {
-  image: 'https://www.apple.com/v/home/bf/images/heroes/iphone-15-pro/hero_iphone15pro__e9yu2lf3gc8i_large.jpg',
-  title: 'iPhone 15 Pro',
-  subtitle: 'Titanium. So strong. So light. So Pro.',
-  cta: 'Buy'
+// Pink Glass Theme
+const THEME = {
+  primary: '#FF2D55',
+  primaryLight: '#FF6B8B',
+  primaryDark: '#E91E63',
+  secondary: '#FF4081',
+  background: '#FFF5F7',
+  card: '#FFFFFF',
+  glass: 'rgba(255, 255, 255, 0.25)',
+  glassDark: 'rgba(255, 255, 255, 0.15)',
+  text: '#1D1D1F',
+  textSecondary: '#8E8E93',
+  textLight: '#B8B8C0',
+  success: '#32D74B',
+  warning: '#FF9500',
+  error: '#FF3B30',
+  gradient: ['#FF2D55', '#FF4081', '#FF6B8B'],
+  gradientLight: ['rgba(255, 45, 85, 0.1)', 'rgba(255, 107, 139, 0.05)']
 };
 
-const LATEST_PRODUCTS = [
-  {
-    id: 'macbook-m3',
-    title: 'MacBook Air M3',
-    subtitle: 'Supercharged by Apple silicon.',
-    image: 'https://www.apple.com/v/home/bf/images/promos/macbook-air-m3/promo_macbookair__fywl7i82fueu_large.jpg',
-    color: '#FF9500'
-  },
-  {
-    id: 'watch-series9',
-    title: 'Apple Watch Series 9',
-    subtitle: 'Smarter. Brighter. Mightier.',
-    image: 'https://www.apple.com/v/home/bf/images/promos/apple-watch-series-9/promo_applewatchseries9__cq5b24io4yoi_large.jpg',
-    color: '#FF2D55'
-  },
-  {
-    id: 'ipad-air',
-    title: 'iPad Air',
-    subtitle: 'Powerful. Colorful. Wonderful.',
-    image: 'https://www.apple.com/v/home/bf/images/promos/ipad-air/promo_ipadair__gl982t3rqkq6_large.jpg',
-    color: '#5856D6'
-  },
-  {
-    id: 'airpods-pro',
-    title: 'AirPods Pro',
-    subtitle: 'Adaptive Audio. Now playing.',
-    image: 'https://www.apple.com/v/home/bf/images/promos/airpods-pro/promo_airpodspro__b7p0hhqn2hde_large.jpg',
-    color: '#32D74B'
-  },
-];
-
+// Featured Categories with emojis
 const CATEGORIES = [
-  {
-    id: 'iphone',
-    name: 'iPhone',
-    icon: 'https://www.apple.com/v/home/bf/images/shop/shop_iphone__d0wnev4y6a8m_large.png',
-    color: '#007AFF'
-  },
-  {
-    id: 'ipad',
-    name: 'iPad',
-    icon: 'https://www.apple.com/v/home/bf/images/shop/shop_ipad__e5m3xn31teyu_large.png',
-    color: '#5856D6'
-  },
-  {
-    id: 'mac',
-    name: 'Mac',
-    icon: 'https://www.apple.com/v/home/bf/images/shop/shop_mac__covlxbvash4i_large.png',
-    color: '#FF9500'
-  },
-  {
-    id: 'watch',
-    name: 'Watch',
-    icon: 'https://www.apple.com/v/home/bf/images/shop/shop_watch__csqqcayzqueu_large.png',
-    color: '#FF2D55'
-  },
-  {
-    id: 'airpods',
-    name: 'AirPods',
-    icon: 'https://www.apple.com/v/home/bf/images/shop/shop_airpods__b20u3tqx9kau_large.png',
-    color: '#32D74B'
-  },
-  {
-    id: 'accessories',
-    name: 'Accessories',
-    icon: 'https://www.apple.com/v/home/bf/images/shop/shop_accessories__cx2e9gs7q3rm_large.png',
-    color: '#5AC8FA'
-  },
+  { id: 'iphone', name: 'iPhone', icon: '📱', color: THEME.primary, gradient: ['#FF2D55', '#FF6B8B'] },
+  { id: 'ipad', name: 'iPad', icon: '💻', color: '#FF9500', gradient: ['#FF9500', '#FFB347'] },
+  { id: 'mac', name: 'Mac', icon: '🖥️', color: '#007AFF', gradient: ['#007AFF', '#5AC8FA'] },
+  { id: 'watch', name: 'Watch', icon: '⌚', color: '#32D74B', gradient: ['#32D74B', '#4CD964'] },
+  { id: 'airpods', name: 'AirPods', icon: '🎧', color: '#5856D6', gradient: ['#5856D6', '#AF52DE'] },
+  { id: 'accessories', name: 'Phụ kiện', icon: '🔌', color: '#FF3B30', gradient: ['#FF3B30', '#FF9500'] },
 ];
 
-const ACCESSORIES_DATA = {
-  image: 'https://www.apple.com/v/accessories/bf/images/overview/all_accessories__b1qhukn6ufue_large.jpg',
-  title: 'All kinds of accessories.'
-};
-
-const HELP_DATA = {
-  image: 'https://www.apple.com/v/home/bf/images/home/bts-apple-support/hero_bts_support__f5tg3z2t7c2y_large.jpg',
-  title: 'Get help from Apple Specialists.'
-};
-
-const FEATURED_PRODUCTS = [
-  {
-    id: 'iphone15',
-    name: 'iPhone 15',
-    price: 'Từ 24.999.000đ',
-    image: 'https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-finish-select-202309-6-1inch?wid=512&hei=512&fmt=p-jpg&qlt=95&.v=1692923777976',
-    badge: 'New'
-  },
-  {
-    id: 'macbookpro',
-    name: 'MacBook Pro',
-    price: 'Từ 52.999.000đ',
-    image: 'https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/macbook-pro-14-spacegray-select-202310?wid=512&hei=512&fmt=p-jpg&qlt=95&.v=1697317663516',
-    badge: null
-  },
-  {
-    id: 'ipadpro',
-    name: 'iPad Pro',
-    price: 'Từ 25.999.000đ',
-    image: 'https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/ipad-pro-finish-select-202210?wid=512&hei=512&fmt=p-jpg&qlt=95&.v=1664579027556',
-    badge: 'M2'
-  },
-  {
-    id: 'watchultra',
-    name: 'Apple Watch Ultra',
-    price: 'Từ 18.990.000đ',
-    image: 'https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/watch-ultra2-202409_GEO_VN?wid=512&hei=512&fmt=jpeg&qlt=90&.v=1723562242804',
-    badge: 'New'
-  },
+// Quick Actions
+const QUICK_ACTIONS = [
+  { id: 1, icon: 'flash', label: 'Flash Sale', color: THEME.primary },
+  { id: 2, icon: 'gift', label: 'Quà tặng', color: THEME.warning },
+  { id: 3, icon: 'star', label: 'Ưu đãi', color: '#FFD700' },
+  { id: 4, icon: 'card', label: 'Trả góp', color: '#32D74B' },
 ];
 
 export default function HomeScreen() {
-  const [cartCount, setCartCount] = useState(0);
-  const [userName, setUserName] = useState('');
+  const { user } = useAuth();
   const [searchText, setSearchText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeHero, setActiveHero] = useState(0);
+  const [cartCount, setCartCount] = useState(2);
+  const [showSearchBar, setShowSearchBar] = useState(false);
+  
+  // Data
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [latestProducts, setLatestProducts] = useState<Product[]>([]);
+  const [heroProducts, setHeroProducts] = useState<Product[]>([]);
+
+  // Animations
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const heroScale = useRef(new Animated.Value(0.95)).current;
+  const slideUp = useRef(new Animated.Value(30)).current;
+  const searchOpacity = useRef(new Animated.Value(0)).current;
+
+  // Header animation
+  const headerHeight = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [HEADER_HEIGHT, 80],
+    extrapolate: 'clamp',
+  });
+
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [1, 0.9],
+    extrapolate: 'clamp',
+  });
+
+  // Hero parallax
+  const heroTranslateY = scrollY.interpolate({
+    inputRange: [0, 400],
+    outputRange: [0, -50],
+    extrapolate: 'clamp',
+  });
+
+  // Initialize
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(fadeAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideUp, {
+        toValue: 0,
+        tension: 60,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+      Animated.timing(heroScale, {
+        toValue: 1,
+        duration: 800,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      })
+    ]).start();
+
+    // Auto scroll hero
+    const interval = setInterval(() => {
+      setActiveHero(prev => (prev + 1) % Math.max(heroProducts.length, 1));
+    }, 3500);
+    
+    return () => clearInterval(interval);
+  }, [heroProducts.length]);
+
+  // Search animation
+  useEffect(() => {
+    Animated.spring(searchOpacity, {
+      toValue: showSearchBar ? 1 : 0,
+      tension: 50,
+      friction: 8,
+      useNativeDriver: true,
+    }).start();
+  }, [showSearchBar]);
+
+  // Load data
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      
+      const [featuredResult, categoriesResult, allResult] = await Promise.all([
+        productService.getFeaturedProducts(),
+        productService.getAllCategories(),
+        productService.getAllProducts()
+      ]);
+
+      if (featuredResult.success && featuredResult.data) {
+        setFeaturedProducts(featuredResult.data);
+        setHeroProducts(featuredResult.data.slice(0, 3));
+      }
+      
+      if (categoriesResult.success && categoriesResult.data) {
+        setCategories(categoriesResult.data);
+      }
+      
+      if (allResult.success && allResult.data) {
+        const latest = [...allResult.data]
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, 6);
+        setLatestProducts(latest);
+      }
+      
+    } catch (error) {
+      console.error('Load error:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    loadUserData();
-    loadCartCount();
+    loadData();
   }, []);
 
-  const loadUserData = async () => {
-    try {
-      const email = await AsyncStorage.getItem('userEmail');
-      if (email) {
-        const name = email.split('@')[0];
-        setUserName(name.charAt(0).toUpperCase() + name.slice(1));
-      }
-    } catch (error) {
-      console.error('Error loading user data:', error);
-    }
+  const handleRefresh = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setRefreshing(true);
+    await loadData();
   };
 
-  const loadCartCount = async () => {
-    try {
-      const cartData = await AsyncStorage.getItem('cart');
-      if (cartData) {
-        const cart = JSON.parse(cartData);
-        const total = cart.reduce((sum: number, item: any) => sum + item.quantity, 0);
-        setCartCount(total);
-      }
-    } catch (error) {
-      console.error('Error loading cart:', error);
-    }
-  };
-
-  const handleLogout = async () => {
-    Alert.alert(
-      'Đăng xuất',
-      'Bạn có chắc chắn muốn đăng xuất?',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        { 
-          text: 'Đăng xuất', 
-          style: 'destructive',
-          onPress: async () => {
-            await AsyncStorage.removeItem('userToken');
-            await AsyncStorage.removeItem('userEmail');
-            router.replace('/(auth)/login');
-          }
-        }
-      ]
-    );
-  };
-
-  const handleAddToCart = async (product: any) => {
-    try {
-      const cartData = await AsyncStorage.getItem('cart');
-      let cart = cartData ? JSON.parse(cartData) : [];
-      
-      const existingIndex = cart.findIndex((item: any) => item.id === product.id);
-      
-      if (existingIndex > -1) {
-        cart[existingIndex].quantity += 1;
-      } else {
-        cart.push({
-          id: product.id,
-          name: product.name,
-          price: product.price,
-          image: product.image,
-          quantity: 1,
-        });
-      }
-      
-      await AsyncStorage.setItem('cart', JSON.stringify(cart));
-      await loadCartCount();
-      
-      Alert.alert(
-        'Thêm thành công',
-        `${product.name} đã được thêm vào giỏ hàng`,
-        [{ text: 'OK' }]
-      );
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      Alert.alert('Lỗi', 'Không thể thêm vào giỏ hàng');
-    }
-  };
-
-  const handleProductPress = (product: any) => {
+  const handleProductPress = (product: Product) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push({
       pathname: '/product/[id]',
-      params: {
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        image: product.image
-      }
+      params: { id: product.id }
     });
   };
 
-  const handleCategoryPress = (category: any) => {
+  const handleCategoryPress = (category: Category) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({
       pathname: '/(tabs)/store',
-      params: { category: category.name }
+      params: { categoryId: category.id, categoryName: category.name }
     });
   };
 
   const handleSearch = () => {
     if (searchText.trim()) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       router.push({
         pathname: '/(tabs)/store',
         params: { search: searchText }
@@ -252,236 +220,519 @@ export default function HomeScreen() {
     }
   };
 
+  const getUserName = () => {
+    const name = user?.displayName || user?.email?.split('@')[0] || 'Bạn';
+    return name.length > 12 ? name.substring(0, 12) + '...' : name;
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <LinearGradient
+          colors={THEME.gradient}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+        <View style={styles.loadingContent}>
+          <Animated.View style={[styles.loadingLogo, { opacity: fadeAnim }]}>
+            <BlurView intensity={80} tint="light" style={styles.glassLogo}>
+              <Ionicons name="logo-apple" size={64} color={THEME.primary} />
+            </BlurView>
+          </Animated.View>
+          <Animated.View style={{ opacity: fadeAnim }}>
+            <Text style={styles.loadingTitle}>Apple Store</Text>
+            <Text style={styles.loadingSubtitle}>Chuẩn bị trải nghiệm tuyệt vời...</Text>
+          </Animated.View>
+          <ActivityIndicator size="large" color="#FFFFFF" style={{ marginTop: 32 }} />
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {/* Status Bar Background */}
-      <View style={styles.statusBar} />
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
       
-      {/* Header */}
-      <View style={styles.header}>
+      {/* Background */}
+      <LinearGradient
+        colors={['#FFF5F7', '#FFFFFF']}
+        style={StyleSheet.absoluteFill}
+      />
+
+      {/* Fixed Header */}
+      <Animated.View 
+        style={[
+          styles.header,
+          {
+            height: headerHeight,
+            opacity: headerOpacity,
+          }
+        ]}
+      >
+        <BlurView intensity={90} tint="light" style={StyleSheet.absoluteFill} />
+        
         <View style={styles.headerContent}>
-          <View style={styles.headerLeft}>
-            <Ionicons name="logo-apple" size={24} color="#000" />
-            <Text style={styles.headerTitle}>Apple Store</Text>
+          {/* Left: Greeting */}
+          <View style={styles.greetingWrapper}>
+            <View style={styles.greetingIcon}>
+              <Ionicons name="sunny" size={20} color={THEME.warning} />
+            </View>
+            <View>
+              <Text style={styles.greetingText}>Xin chào</Text>
+              <Text style={styles.userName}>{getUserName()} 👋</Text>
+            </View>
           </View>
-          
-          <View style={styles.headerRight}>
-            <Pressable 
-              style={styles.headerIcon}
+
+          {/* Right: Actions */}
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => router.push('/(tabs)/notifications')}
+            >
+              <Ionicons name="notifications-outline" size={22} color={THEME.text} />
+              <View style={styles.notificationDot} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.actionButton}
               onPress={() => router.push('/(tabs)/cart')}
             >
-              <View style={styles.cartContainer}>
-                <Ionicons name="cart-outline" size={22} color="#000" />
+              <View style={styles.cartWrapper}>
+                <Ionicons name="cart-outline" size={22} color={THEME.text} />
                 {cartCount > 0 && (
                   <View style={styles.cartBadge}>
                     <Text style={styles.cartBadgeText}>{cartCount}</Text>
                   </View>
                 )}
               </View>
-            </Pressable>
-            
-            <Pressable 
-              style={styles.headerIcon}
-              onPress={() => router.push('/(tabs)/profile')}
-            >
-              <Ionicons name="person-outline" size={22} color="#000" />
-            </Pressable>
+            </TouchableOpacity>
           </View>
         </View>
+      </Animated.View>
+
+      {/* Fixed Search Bar - Always Visible */}
+      <Animated.View 
+        style={[
+          styles.searchBarContainer,
+          {
+            transform: [{
+              translateY: scrollY.interpolate({
+                inputRange: [0, 50],
+                outputRange: [0, -20],
+                extrapolate: 'clamp',
+              })
+            }],
+            opacity: scrollY.interpolate({
+              inputRange: [0, 100],
+              outputRange: [1, 0.95],
+              extrapolate: 'clamp',
+            })
+          }
+        ]}
+      >
+        <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
         
-        {/* Welcome Text */}
-        <Text style={styles.welcomeText}>
-          Xin chào, {userName || 'Khách'} 👋
-        </Text>
-      </View>
+        <View style={styles.searchBar}>
+          <TouchableOpacity 
+            style={styles.searchIcon}
+            onPress={handleSearch}
+          >
+            <Ionicons name="search" size={20} color={THEME.primary} />
+          </TouchableOpacity>
+          
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Tìm kiếm sản phẩm..."
+            placeholderTextColor={THEME.textLight}
+            value={searchText}
+            onChangeText={setSearchText}
+            onSubmitEditing={handleSearch}
+            returnKeyType="search"
+          />
+          
+          {searchText.length > 0 ? (
+            <TouchableOpacity 
+              style={styles.clearButton}
+              onPress={() => setSearchText('')}
+            >
+              <Ionicons name="close-circle" size={18} color={THEME.textLight} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={styles.voiceButton}
+              onPress={() => Alert.alert('Tính năng sắp ra mắt', 'Tìm kiếm bằng giọng nói')}
+            >
+              <Ionicons name="mic-outline" size={18} color={THEME.textLight} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </Animated.View>
 
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#8E8E93" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Tìm kiếm Apple Store..."
-          placeholderTextColor="#8E8E93"
-          value={searchText}
-          onChangeText={setSearchText}
-          onSubmitEditing={handleSearch}
-          returnKeyType="search"
-        />
-        {searchText.length > 0 && (
-          <Pressable onPress={() => setSearchText('')} style={styles.clearSearch}>
-            <Ionicons name="close-circle" size={18} color="#C7C7CC" />
-          </Pressable>
-        )}
-      </View>
-
-      <ScrollView 
+      {/* Main Content */}
+      <Animated.ScrollView
         showsVerticalScrollIndicator={false}
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={THEME.primary}
+            colors={[THEME.primary]}
+          />
+        }
       >
         {/* Hero Banner */}
-        <Pressable 
-          style={styles.heroContainer}
-          onPress={() => handleProductPress({ id: 'iphone15pro', name: 'iPhone 15 Pro' })}
+        <Animated.View 
+          style={[
+            styles.heroContainer,
+            {
+              transform: [{ translateY: heroTranslateY }],
+              opacity: fadeAnim,
+            }
+          ]}
         >
-          <Image 
-            source={{ uri: HERO_BANNER.image }}
-            style={styles.heroImage}
-            resizeMode="cover"
-          />
-          <View style={styles.heroOverlay} />
-          <View style={styles.heroContent}>
-            <Text style={styles.heroTitle}>{HERO_BANNER.title}</Text>
-            <Text style={styles.heroSubtitle}>{HERO_BANNER.subtitle}</Text>
-            <Pressable style={styles.heroButton}>
-              <Text style={styles.heroButtonText}>Mua ngay</Text>
-            </Pressable>
+          {heroProducts.length > 0 ? (
+            <View style={styles.heroWrapper}>
+              <Image
+                source={{ uri: heroProducts[activeHero]?.imageUrl || 'https://images.unsplash.com/photo-1546054451-aa5b470bcc71' }}
+                style={styles.heroImage}
+                resizeMode="cover"
+              />
+              
+              <LinearGradient
+                colors={['rgba(255, 45, 85, 0.85)', 'rgba(255, 107, 139, 0.75)']}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              />
+              
+              <View style={styles.heroContent}>
+                <View style={styles.heroTag}>
+                  <Text style={styles.heroTagText}>NEW</Text>
+                </View>
+                
+                <Text style={styles.heroTitle}>
+                  {heroProducts[activeHero]?.name || 'iPhone 15 Pro Max'}
+                </Text>
+                
+                <Text style={styles.heroDescription}>
+                  {heroProducts[activeHero]?.description?.substring(0, 60) + '...' || 'Thiết kế Titanium siêu nhẹ, camera 48MP chuyên nghiệp'}
+                </Text>
+                
+                <View style={styles.heroPriceRow}>
+                  <Text style={styles.heroPrice}>
+                    {heroProducts[activeHero] ? formatPrice(heroProducts[activeHero].price) : '29.990.000đ'}
+                  </Text>
+                  {heroProducts[activeHero]?.originalPrice && (
+                    <Text style={styles.heroOldPrice}>
+                      {formatPrice(heroProducts[activeHero].originalPrice)}
+                    </Text>
+                  )}
+                </View>
+                
+                <TouchableOpacity 
+                  style={styles.heroButton}
+                  onPress={() => heroProducts[activeHero] && handleProductPress(heroProducts[activeHero])}
+                >
+                  <LinearGradient
+                    colors={['#FFFFFF', 'rgba(255,255,255,0.9)']}
+                    style={styles.heroButtonGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Text style={styles.heroButtonText}>Mua ngay</Text>
+                    <Ionicons name="arrow-forward" size={18} color={THEME.primary} />
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.heroPlaceholder}>
+              <LinearGradient
+                colors={THEME.gradient}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={styles.heroContent}>
+                <Text style={styles.heroTitle}>Apple Store Premium</Text>
+                <Text style={styles.heroDescription}>Trải nghiệm công nghệ đỉnh cao</Text>
+              </View>
+            </View>
+          )}
+        </Animated.View>
+
+        {/* Quick Actions */}
+        <View style={styles.quickSection}>
+          <Text style={styles.sectionTitle}>Dịch vụ nhanh</Text>
+          
+          <View style={styles.quickGrid}>
+            {QUICK_ACTIONS.map((action, index) => (
+              <TouchableOpacity
+                key={action.id}
+                style={styles.quickItem}
+                onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+              >
+                <Animated.View 
+                  style={[
+                    styles.quickIconWrapper,
+                    {
+                      opacity: fadeAnim,
+                      transform: [{
+                        scale: fadeAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.8, 1]
+                        })
+                      }]
+                    }
+                  ]}
+                >
+                  <LinearGradient
+                    colors={[`${action.color}20`, `${action.color}10`]}
+                    style={styles.quickIconGradient}
+                  >
+                    <Ionicons name={action.icon as any} size={24} color={action.color} />
+                  </LinearGradient>
+                </Animated.View>
+                <Text style={styles.quickLabel}>{action.label}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
-        </Pressable>
+        </View>
+
+        {/* Categories - 2 Rows */}
+        <View style={styles.categoriesSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Danh mục</Text>
+            <TouchableOpacity 
+              style={styles.moreButton}
+              onPress={() => router.push('/(tabs)/store')}
+            >
+              <Text style={styles.moreText}>Xem tất cả</Text>
+              <Ionicons name="chevron-forward" size={16} color={THEME.primary} />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.categoriesGrid}>
+            {CATEGORIES.map((category, index) => (
+              <TouchableOpacity
+                key={category.id}
+                style={styles.categoryItem}
+                onPress={() => handleCategoryPress(category as any)}
+              >
+                <Animated.View 
+                  style={[
+                    styles.categoryIconContainer,
+                    {
+                      opacity: fadeAnim,
+                      transform: [{
+                        translateY: fadeAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [20, 0]
+                        })
+                      }]
+                    }
+                  ]}
+                >
+                  <LinearGradient
+                    colors={category.gradient}
+                    style={styles.categoryGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Text style={styles.categoryIcon}>{category.icon}</Text>
+                  </LinearGradient>
+                </Animated.View>
+                <Text style={styles.categoryName}>{category.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
 
         {/* Featured Products */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Sản phẩm nổi bật</Text>
+        <View style={styles.featuredSection}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleRow}>
+              <Ionicons name="star" size={20} color={THEME.warning} />
+              <Text style={styles.sectionTitle}>Sản phẩm nổi bật</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.moreButton}
+              onPress={() => router.push('/(tabs)/store')}
+            >
+              <Text style={styles.moreText}>Xem thêm</Text>
+            </TouchableOpacity>
+          </View>
+          
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
             style={styles.featuredScroll}
           >
-            {FEATURED_PRODUCTS.map((product) => (
-              <Pressable
+            {featuredProducts.slice(0, 6).map((product, index) => (
+              <TouchableOpacity
                 key={product.id}
                 style={styles.featuredCard}
                 onPress={() => handleProductPress(product)}
               >
-                <View style={styles.featuredImageContainer}>
-                  <Image 
-                    source={{ uri: product.image }}
-                    style={styles.featuredImage}
+                <Animated.View 
+                  style={[
+                    styles.productImageWrapper,
+                    {
+                      opacity: fadeAnim,
+                      transform: [{
+                        translateX: fadeAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [index * 30, 0]
+                        })
+                      }]
+                    }
+                  ]}
+                >
+                  <Image
+                    source={{ uri: product.imageUrl }}
+                    style={styles.productImage}
                     resizeMode="contain"
                   />
+                  
                   {product.badge && (
-                    <View style={styles.featuredBadge}>
-                      <Text style={styles.featuredBadgeText}>{product.badge}</Text>
+                    <View style={styles.productBadge}>
+                      <Text style={styles.productBadgeText}>{product.badge}</Text>
                     </View>
                   )}
+                  
+                  <TouchableOpacity 
+                    style={styles.wishlistButton}
+                    onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+                  >
+                    <Ionicons name="heart-outline" size={20} color={THEME.primary} />
+                  </TouchableOpacity>
+                </Animated.View>
+                
+                <View style={styles.productInfo}>
+                  <Text style={styles.productName} numberOfLines={2}>
+                    {product.name}
+                  </Text>
+                  <Text style={styles.productCategory}>
+                    {product.categoryName}
+                  </Text>
+                  
+                  <View style={styles.priceContainer}>
+                    <Text style={styles.productPrice}>
+                      {formatPrice(product.price)}
+                    </Text>
+                    {product.originalPrice && product.originalPrice > product.price && (
+                      <Text style={styles.originalPrice}>
+                        {formatPrice(product.originalPrice)}
+                      </Text>
+                    )}
+                  </View>
+                  
+                  <View style={styles.ratingContainer}>
+                    <Ionicons name="star" size={14} color="#FFD700" />
+                    <Text style={styles.ratingText}>
+                      {product.rating?.toFixed(1) || '4.8'} ({product.reviewCount || 128})
+                    </Text>
+                  </View>
                 </View>
-                <Text style={styles.featuredName}>{product.name}</Text>
-                <Text style={styles.featuredPrice}>{product.price}</Text>
-              </Pressable>
+              </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
 
-        {/* Latest Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Sản phẩm mới</Text>
-          <View style={styles.latestGrid}>
-            {LATEST_PRODUCTS.map((item) => (
-              <Pressable
-                key={item.id}
-                style={styles.latestCard}
-                onPress={() => handleProductPress({ id: item.id, name: item.title })}
-              >
-                <Image 
-                  source={{ uri: item.image }}
-                  style={styles.latestImage}
-                  resizeMode="cover"
-                />
-                <View style={[styles.latestOverlay, { backgroundColor: item.color + '20' }]} />
-                <View style={styles.latestContent}>
-                  <Text style={styles.latestTitle}>{item.title}</Text>
-                  <Text style={styles.latestSubtitle}>{item.subtitle}</Text>
-                </View>
-              </Pressable>
-            ))}
+        {/* New Arrivals */}
+        <View style={styles.newArrivalsSection}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleRow}>
+              <Ionicons name="flash" size={20} color={THEME.primary} />
+              <Text style={styles.sectionTitle}>Mới về</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.moreButton}
+              onPress={() => router.push('/(tabs)/store')}
+            >
+              <Text style={styles.moreText}>Tất cả mới</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-
-        {/* Categories */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mua theo danh mục</Text>
-          <View style={styles.categoriesGrid}>
-            {CATEGORIES.map((category) => (
-              <Pressable
-                key={category.id}
-                style={styles.categoryCard}
-                onPress={() => handleCategoryPress(category)}
+          
+          <View style={styles.newArrivalsGrid}>
+            {latestProducts.slice(0, 4).map((product, index) => (
+              <TouchableOpacity
+                key={product.id}
+                style={styles.newArrivalCard}
+                onPress={() => handleProductPress(product)}
               >
-                <View style={[styles.categoryIconContainer, { backgroundColor: category.color + '15' }]}>
-                  <Image 
-                    source={{ uri: category.icon }}
-                    style={styles.categoryIcon}
-                    resizeMode="contain"
+                <View style={styles.newImageContainer}>
+                  <Image
+                    source={{ uri: product.imageUrl }}
+                    style={styles.newImage}
+                    resizeMode="cover"
                   />
+                  <View style={styles.newBadge}>
+                    <Text style={styles.newBadgeText}>NEW</Text>
+                  </View>
                 </View>
-                <Text style={styles.categoryName}>{category.name}</Text>
-              </Pressable>
+                
+                <View style={styles.newInfo}>
+                  <Text style={styles.newName} numberOfLines={2}>
+                    {product.name}
+                  </Text>
+                  <Text style={styles.newPrice}>
+                    {formatPrice(product.price)}
+                  </Text>
+                  
+                  <TouchableOpacity 
+                    style={styles.addButton}
+                    onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+                  >
+                    <Ionicons name="add" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
             ))}
-          </View>
-        </View>
-
-        {/* Accessories */}
-        <Pressable 
-          style={styles.accessoryContainer}
-          onPress={() => router.push('/(tabs)/store')}
-        >
-          <Image 
-            source={{ uri: ACCESSORIES_DATA.image }}
-            style={styles.accessoryImage}
-            resizeMode="cover"
-          />
-          <View style={styles.accessoryOverlay} />
-          <View style={styles.accessoryContent}>
-            <Text style={styles.accessoryTitle}>{ACCESSORIES_DATA.title}</Text>
-            <Pressable style={styles.accessoryButton}>
-              <Text style={styles.accessoryButtonText}>Xem tất cả</Text>
-              <Ionicons name="arrow-forward" size={16} color="#007AFF" />
-            </Pressable>
-          </View>
-        </Pressable>
-
-        {/* Help Section */}
-        <View style={styles.helpContainer}>
-          <Image 
-            source={{ uri: HELP_DATA.image }}
-            style={styles.helpImage}
-            resizeMode="cover"
-          />
-          <View style={styles.helpOverlay} />
-          <View style={styles.helpContent}>
-            <Text style={styles.helpTitle}>{HELP_DATA.title}</Text>
-            <Pressable style={styles.helpButton}>
-              <Text style={styles.helpButtonText}>Liên hệ hỗ trợ</Text>
-            </Pressable>
           </View>
         </View>
 
         {/* Footer */}
         <View style={styles.footer}>
-          <View style={styles.footerLogo}>
-            <Ionicons name="logo-apple" size={32} color="#000" />
-            <Text style={styles.footerTitle}>Apple Store</Text>
-          </View>
-          <Text style={styles.footerText}>
-            Mua sắm trực tuyến với trải nghiệm Apple chính hãng
-          </Text>
-          <View style={styles.footerStats}>
-            <View style={styles.statItem}>
-              <Ionicons name="cube-outline" size={20} color="#007AFF" />
-              <Text style={styles.statText}>Miễn phí giao hàng</Text>
+          <BlurView intensity={60} tint="light" style={StyleSheet.absoluteFill} />
+          <LinearGradient
+            colors={THEME.gradientLight}
+            style={styles.footerGradient}
+          >
+            <View style={styles.footerLogo}>
+              <Ionicons name="logo-apple" size={32} color={THEME.primary} />
+              <Text style={styles.footerTitle}>Apple Store</Text>
             </View>
-            <View style={styles.statItem}>
-              <Ionicons name="shield-checkmark-outline" size={20} color="#32D74B" />
-              <Text style={styles.statText}>Bảo hành chính hãng</Text>
+            
+            <Text style={styles.footerTagline}>
+              Chính hãng • Bảo hành 1 năm • Giao hàng miễn phí
+            </Text>
+            
+            <View style={styles.footerStats}>
+              <View style={styles.stat}>
+                <Ionicons name="checkmark-done" size={16} color={THEME.success} />
+                <Text style={styles.statText}>100% Chính hãng</Text>
+              </View>
+              <View style={styles.stat}>
+                <Ionicons name="shield-checkmark" size={16} color={THEME.primary} />
+                <Text style={styles.statText}>Bảo hành 12 tháng</Text>
+              </View>
+              <View style={styles.stat}>
+                <Ionicons name="rocket" size={16} color={THEME.warning} />
+                <Text style={styles.statText}>Giao nhanh 2h</Text>
+              </View>
             </View>
-            <View style={styles.statItem}>
-              <Ionicons name="card-outline" size={20} color="#FF9500" />
-              <Text style={styles.statText}>Thanh toán an toàn</Text>
-            </View>
-          </View>
+          </LinearGradient>
         </View>
-
-        <View style={styles.bottomSpace} />
-      </ScrollView>
+        
+        <View style={styles.bottomPadding} />
+      </Animated.ScrollView>
     </View>
   );
 }
@@ -489,78 +740,144 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: THEME.background,
   },
-  statusBar: {
-    height: Platform.OS === 'ios' ? 44 : 24,
-    backgroundColor: '#ffffff',
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
+  loadingContent: {
+    alignItems: 'center',
+  },
+  loadingLogo: {
+    marginBottom: 24,
+  },
+  glassLogo: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  loadingTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  loadingSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: '500',
+  },
+  // Header
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 16,
-    backgroundColor: '#ffffff',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    overflow: 'hidden',
   },
   headerContent: {
+    flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 12,
   },
-  headerLeft: {
+  greetingWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
-  headerTitle: {
-    fontSize: 24,
+  greetingIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  greetingText: {
+    fontSize: 12,
+    color: THEME.textSecondary,
+    fontWeight: '500',
+  },
+  userName: {
+    fontSize: 18,
     fontWeight: '700',
-    color: '#000000',
-    letterSpacing: -0.5,
+    color: THEME.text,
   },
-  headerRight: {
+  headerActions: {
     flexDirection: 'row',
+    gap: 12,
+  },
+  actionButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: THEME.glass,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
   },
-  headerIcon: {
-    padding: 6,
-  },
-  cartContainer: {
+  cartWrapper: {
     position: 'relative',
   },
   cartBadge: {
     position: 'absolute',
-    top: -2,
-    right: -2,
-    backgroundColor: '#FF3B30',
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
+    top: -4,
+    right: -4,
+    backgroundColor: THEME.primary,
+    borderRadius: 9,
+    width: 18,
+    height: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#ffffff',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   cartBadgeText: {
-    color: '#ffffff',
+    color: '#FFFFFF',
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '800',
   },
-  welcomeText: {
-    fontSize: 16,
-    color: '#8E8E93',
-    marginTop: 8,
-    fontWeight: '500',
+  notificationDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: THEME.primary,
   },
-  searchContainer: {
+  // Search Bar
+  searchBarContainer: {
+    position: 'absolute',
+    top: HEADER_HEIGHT - 20,
+    left: 20,
+    right: 20,
+    height: SEARCH_HEIGHT,
+    zIndex: 999,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  searchBar: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F2F2F7',
-    marginHorizontal: 20,
-    marginVertical: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
   },
   searchIcon: {
     marginRight: 12,
@@ -568,315 +885,423 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#000000',
-    fontWeight: '400',
+    color: THEME.text,
+    fontWeight: '500',
+    height: '100%',
   },
-  clearSearch: {
+  clearButton: {
     padding: 4,
   },
+  voiceButton: {
+    padding: 4,
+  },
+  // Scroll View
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    paddingTop: HEADER_HEIGHT + SEARCH_HEIGHT + 10,
+    paddingBottom: 100,
+  },
+  // Hero
   heroContainer: {
     marginHorizontal: 20,
     marginBottom: 24,
-    borderRadius: 20,
+    borderRadius: 28,
     overflow: 'hidden',
-    position: 'relative',
     height: 380,
+  },
+  heroWrapper: {
+    flex: 1,
+    position: 'relative',
   },
   heroImage: {
     width: '100%',
     height: '100%',
-  },
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
   },
   heroContent: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 24,
+    padding: 28,
+  },
+  heroTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  heroTagText: {
+    color: THEME.primary,
+    fontSize: 12,
+    fontWeight: '800',
   },
   heroTitle: {
-    fontSize: 34,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 4,
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 8,
+    lineHeight: 34,
   },
-  heroSubtitle: {
-    fontSize: 18,
-    color: 'rgba(255,255,255,0.9)',
+  heroDescription: {
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 16,
+    lineHeight: 22,
+  },
+  heroPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     marginBottom: 20,
   },
+  heroPrice: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  heroOldPrice: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.7)',
+    textDecorationLine: 'line-through',
+  },
   heroButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 20,
     alignSelf: 'flex-start',
   },
+  heroButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 25,
+    gap: 8,
+  },
   heroButtonText: {
-    color: '#ffffff',
+    color: THEME.primary,
     fontSize: 16,
-    fontWeight: '600',
-  },
-  section: {
-    marginBottom: 32,
-    paddingHorizontal: 20,
-  },
-  sectionTitle: {
-    fontSize: 24,
     fontWeight: '700',
-    color: '#000000',
-    marginBottom: 16,
-    letterSpacing: -0.5,
   },
-  featuredScroll: {
-    paddingVertical: 8,
-  },
-  featuredCard: {
-    width: 140,
-    marginRight: 16,
-  },
-  featuredImageContainer: {
-    height: 140,
-    backgroundColor: '#F2F2F7',
-    borderRadius: 16,
-    marginBottom: 12,
-    position: 'relative',
+  heroPlaceholder: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  featuredImage: {
-    width: '80%',
-    height: '80%',
+  // Quick Actions
+  quickSection: {
+    marginHorizontal: 20,
+    marginBottom: 28,
   },
-  featuredBadge: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: THEME.text,
+    marginBottom: 16,
   },
-  featuredBadgeText: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  featuredName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000000',
-    marginBottom: 4,
-  },
-  featuredPrice: {
-    fontSize: 15,
-    color: '#007AFF',
-    fontWeight: '600',
-  },
-  latestGrid: {
+  quickGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  latestCard: {
-    width: (width - 40 - 12) / 2,
-    height: 200,
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 12,
-    position: 'relative',
+  quickItem: {
+    alignItems: 'center',
+    width: (width - 60) / 4,
   },
-  latestImage: {
-    width: '100%',
-    height: '100%',
+  quickIconWrapper: {
+    marginBottom: 8,
   },
-  latestOverlay: {
-    ...StyleSheet.absoluteFillObject,
+  quickIconGradient: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  latestContent: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
+  quickLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: THEME.text,
+    textAlign: 'center',
   },
-  latestTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#000000',
-    marginBottom: 4,
+  // Categories
+  categoriesSection: {
+    marginHorizontal: 20,
+    marginBottom: 28,
   },
-  latestSubtitle: {
-    fontSize: 13,
-    color: '#000000',
-    opacity: 0.8,
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  moreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  moreText: {
+    fontSize: 14,
+    color: THEME.primary,
+    fontWeight: '600',
   },
   categoriesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  categoryCard: {
-    width: (width - 40 - 24) / 3,
-    alignItems: 'center',
+  categoryItem: {
+    width: (width - 60) / 3,
     marginBottom: 20,
+    alignItems: 'center',
   },
   categoryIconContainer: {
+    marginBottom: 12,
+  },
+  categoryGradient: {
     width: 72,
     height: 72,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
   },
   categoryIcon: {
-    width: 40,
-    height: 40,
+    fontSize: 32,
   },
   categoryName: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#000000',
+    fontWeight: '600',
+    color: THEME.text,
     textAlign: 'center',
   },
-  accessoryContainer: {
-    marginHorizontal: 20,
-    marginBottom: 24,
-    borderRadius: 20,
-    overflow: 'hidden',
-    height: 240,
-    position: 'relative',
+  // Featured Products
+  featuredSection: {
+    marginBottom: 28,
   },
-  accessoryImage: {
-    width: '100%',
-    height: '100%',
+  featuredScroll: {
+    paddingLeft: 20,
   },
-  accessoryOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+  featuredCard: {
+    width: 220,
+    backgroundColor: THEME.card,
+    borderRadius: 24,
+    marginRight: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 6,
   },
-  accessoryContent: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  productImageWrapper: {
+    height: 160,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 16,
+    marginBottom: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    position: 'relative',
   },
-  accessoryTitle: {
-    fontSize: 28,
+  productImage: {
+    width: '80%',
+    height: '80%',
+  },
+  productBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    backgroundColor: THEME.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  productBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  wishlistButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  productInfo: {
+    flex: 1,
+  },
+  productName: {
+    fontSize: 16,
     fontWeight: '700',
-    color: '#ffffff',
-    textAlign: 'center',
-    marginBottom: 20,
+    color: THEME.text,
+    marginBottom: 4,
+    lineHeight: 22,
   },
-  accessoryButton: {
+  productCategory: {
+    fontSize: 13,
+    color: THEME.textSecondary,
+    marginBottom: 8,
+  },
+  priceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 20,
     gap: 8,
+    marginBottom: 8,
   },
-  accessoryButtonText: {
-    color: '#007AFF',
-    fontSize: 16,
-    fontWeight: '600',
+  productPrice: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: THEME.primary,
   },
-  helpContainer: {
+  originalPrice: {
+    fontSize: 14,
+    color: THEME.textSecondary,
+    textDecorationLine: 'line-through',
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  ratingText: {
+    fontSize: 13,
+    color: THEME.textSecondary,
+  },
+  // New Arrivals
+  newArrivalsSection: {
     marginHorizontal: 20,
-    marginBottom: 32,
-    borderRadius: 20,
-    overflow: 'hidden',
-    height: 240,
-    position: 'relative',
+    marginBottom: 28,
   },
-  helpImage: {
+  newArrivalsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  newArrivalCard: {
+    width: (width - 60) / 2,
+    backgroundColor: THEME.card,
+    borderRadius: 20,
+    marginBottom: 16,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  newImageContainer: {
+    height: 120,
+    borderRadius: 12,
+    marginBottom: 12,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  newImage: {
     width: '100%',
     height: '100%',
   },
-  helpOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-  },
-  helpContent: {
+  newBadge: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    top: 8,
+    right: 8,
+    backgroundColor: THEME.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  newBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  newInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  newName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: THEME.text,
+    marginRight: 8,
+  },
+  newPrice: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: THEME.primary,
+  },
+  addButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: THEME.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    marginLeft: 8,
   },
-  helpTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#ffffff',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  helpButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 20,
-  },
-  helpButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  // Footer
   footer: {
-    backgroundColor: '#F2F2F7',
-    padding: 32,
     marginHorizontal: 20,
-    borderRadius: 20,
+    marginBottom: 32,
+    borderRadius: 24,
+    overflow: 'hidden',
+    height: 180,
+  },
+  footerGradient: {
+    flex: 1,
+    padding: 24,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
   },
   footerLogo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   footerTitle: {
     fontSize: 24,
-    fontWeight: '700',
-    color: '#000000',
+    fontWeight: '800',
+    color: THEME.text,
     marginLeft: 8,
   },
-  footerText: {
-    fontSize: 15,
-    color: '#8E8E93',
+  footerTagline: {
+    fontSize: 14,
+    color: THEME.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
+    marginBottom: 20,
+    lineHeight: 20,
   },
   footerStats: {
-    width: '100%',
-    gap: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 16,
   },
-  statItem: {
+  stat: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
   statText: {
-    fontSize: 14,
-    color: '#000000',
+    fontSize: 12,
+    color: THEME.text,
     fontWeight: '500',
   },
-  bottomSpace: {
+  bottomPadding: {
     height: 100,
   },
 });
