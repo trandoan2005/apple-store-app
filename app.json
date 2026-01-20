@@ -8,8 +8,6 @@
     "scheme": "applestore",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    
-    // Thêm splash screen tốt hơn
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
@@ -19,13 +17,9 @@
         "backgroundColor": "#000000"
       }
     },
-    
-    // Asset bundling
     "assetBundlePatterns": [
       "**/*"
     ],
-    
-    // IOS configuration
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.yourcompany.applestore",
@@ -34,14 +28,14 @@
         "NSCameraUsageDescription": "App cần truy cập camera để chụp ảnh sản phẩm",
         "NSPhotoLibraryUsageDescription": "App cần truy cập thư viện ảnh để tải ảnh sản phẩm",
         "NSMicrophoneUsageDescription": "App cần truy cập microphone để tìm kiếm bằng giọng nói",
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       },
       "config": {
         "usesNonExemptEncryption": false
       }
     },
-    
-    // Android configuration
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -63,15 +57,11 @@
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize"
     },
-    
-    // Web configuration
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png",
       "bundler": "metro"
     },
-    
-    // Plugins - THÊM QUAN TRỌNG
     "plugins": [
       "expo-router",
       [
@@ -88,7 +78,6 @@
         }
       ],
       "expo-web-browser",
-      // Thêm các plugin cần thiết
       [
         "expo-image-picker",
         {
@@ -101,7 +90,9 @@
         {
           "icon": "./assets/images/notification-icon.png",
           "color": "#007AFF",
-          "sounds": ["./assets/sounds/notification.wav"]
+          "sounds": [
+            "./assets/sounds/notification.wav"
+          ]
         }
       ],
       [
@@ -112,9 +103,6 @@
       ],
       [
         "expo-av"
-      ],
-      [
-        "@config-plugins/react-native-blob-util"
       ],
       [
         "expo-build-properties",
@@ -128,10 +116,9 @@
             "deploymentTarget": "15.1"
           }
         }
-      ]
+      ],
+      "expo-font"
     ],
-    
-    // Extra configuration
     "extra": {
       "eas": {
         "projectId": "your-project-id-here"
@@ -146,26 +133,18 @@
         "measurementId": "G-XHY8R8LV0N"
       }
     },
-    
-    // Updates
     "updates": {
       "url": "https://u.expo.dev/your-project-id",
       "fallbackToCacheTimeout": 3000
     },
-    
-    // Runtime version
     "runtimeVersion": {
       "policy": "sdkVersion"
     },
-    
-    // Experiments
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true,
       "tsconfigPaths": true
     },
-    
-    // Development settings
     "developmentClient": {
       "silentLaunch": true
     }

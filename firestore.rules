@@ -1,0 +1,41 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is accessing their own data
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Products: Public read, only admin write (relaxed for dev: authenticated write)
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAuthenticated(); // Should be admin only in prod
+    }
+
+    // Categories: Public read, only admin write (relaxed for dev: authenticated write)
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+    
+    // Carts: Users can only read/write their own cart
+    match /carts/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+    
+    // Users Profile: Users can only read/write their own profile
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+    
+    // Allow read/write for other collections during dev if needed, 
+    // or block everything else by default (implicit deny)
+  }
+}

@@ -1,228 +1,173 @@
-// app/(tabs)/_layout.tsx - ĐÃ SỬA LỖI
+// app/(tabs)/_layout.tsx - PHONE STORE VERSION
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform, Animated, View, StyleSheet, Dimensions } from 'react-native';
+import { Platform, View, StyleSheet, Text } from 'react-native';
+import { useMemo } from 'react';
+import { useCart } from '../../contexts/CartContext';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useRef } from 'react';
 
-const { width } = Dimensions.get('window');
-
-// Premium Liquid Glass colors với type an toàn
+// Cấu hình tabs cho cửa hàng điện thoại
 const TAB_CONFIGS = {
   index: {
-    active: '#007AFF',
-    inactive: '#8E8E93',
-    gradient: ['#007AFF', '#5856D6', '#007AFF'],
-    glassGradient: ['rgba(0, 122, 255, 0.15)', 'rgba(88, 86, 214, 0.25)', 'rgba(0, 122, 255, 0.15)'],
-    glow: 'rgba(0, 122, 255, 0.4)',
+    active: '#d70018', // CellphoneS Red
+    inactive: '#707070',
     iconActive: 'home' as const,
     iconInactive: 'home-outline' as const,
     label: 'Trang chủ',
-    depth: 2
   },
   store: {
-    active: '#34C759',
-    inactive: '#8E8E93',
-    gradient: ['#34C759', '#32D74B', '#34C759'],
-    glassGradient: ['rgba(52, 199, 89, 0.15)', 'rgba(50, 215, 75, 0.25)', 'rgba(52, 199, 89, 0.15)'],
-    glow: 'rgba(52, 199, 89, 0.4)',
+    active: '#d70018',
+    inactive: '#707070',
     iconActive: 'bag-handle' as const,
     iconInactive: 'bag-handle-outline' as const,
-    label: 'Cửa hàng',
-    depth: 3
+    label: 'Mua sắm',
   },
   cart: {
-    active: '#FF9500',
-    inactive: '#8E8E93',
-    gradient: ['#FF9500', '#FF9F0A', '#FF9500'],
-    glassGradient: ['rgba(255, 149, 0, 0.15)', 'rgba(255, 159, 10, 0.25)', 'rgba(255, 149, 0, 0.15)'],
-    glow: 'rgba(255, 149, 0, 0.4)',
+    active: '#d70018',
+    inactive: '#707070',
     iconActive: 'cart' as const,
     iconInactive: 'cart-outline' as const,
     label: 'Giỏ hàng',
-    depth: 4
   },
   profile: {
-    active: '#AF52DE',
-    inactive: '#8E8E93',
-    gradient: ['#AF52DE', '#BF5AF2', '#AF52DE'],
-    glassGradient: ['rgba(175, 82, 222, 0.15)', 'rgba(191, 90, 242, 0.25)', 'rgba(175, 82, 222, 0.15)'],
-    glow: 'rgba(175, 82, 222, 0.4)',
-    iconActive: 'person-circle' as const,
-    iconInactive: 'person-circle-outline' as const,
-    label: 'Cá nhân',
-    depth: 2
-  }
+    active: '#d70018',
+    inactive: '#707070',
+    iconActive: 'person' as const,
+    iconInactive: 'person-outline' as const,
+    label: 'Smember',
+  },
 } as const;
 
-// Type cho route name
 type TabRouteName = keyof typeof TAB_CONFIGS;
 
 export default function TabLayout() {
-  const tabPosition = useRef(new Animated.Value(0)).current;
-  
+  const { cart } = useCart();
+  const itemCount = cart?.itemCount || 0;
+
   return (
     <Tabs
-      screenListeners={{
-        tabPress: (e) => {
-          const routeName = e.target?.split('-')[0] as TabRouteName;
-          const tabKeys = Object.keys(TAB_CONFIGS) as TabRouteName[];
-          const tabIndex = tabKeys.indexOf(routeName || 'index');
-          Animated.spring(tabPosition, {
-            toValue: (width / tabKeys.length) * tabIndex,
-            useNativeDriver: true,
-            tension: 100,
-            friction: 15,
-          }).start();
-        },
-      }}
       screenOptions={({ route }) => {
         const routeName = route.name as TabRouteName;
         const tabConfig = TAB_CONFIGS[routeName] || TAB_CONFIGS.index;
-        
+
         return {
           headerShown: false,
           tabBarActiveTintColor: tabConfig.active,
           tabBarInactiveTintColor: tabConfig.inactive,
           tabBarStyle: {
-            backgroundColor: 'transparent',
-            borderTopWidth: 0,
-            elevation: 0,
-            shadowOpacity: 0,
-            height: Platform.OS === 'ios' ? 96 : 80,
             position: 'absolute',
-            paddingBottom: Platform.OS === 'ios' ? 28 : 14,
-            paddingTop: 12,
+            bottom: Platform.OS === 'ios' ? 24 : 16,
+            left: 16,
+            right: 16,
+            height: 64,
+            borderRadius: 32,
+            backgroundColor: 'rgba(0,0,0,0.5)', // Darker transparent
+            borderTopWidth: 0,
+            borderWidth: 1,
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+            paddingBottom: 0,
             overflow: 'hidden',
+            ...Platform.select({
+              ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.3,
+                shadowRadius: 20,
+              },
+              android: {
+                elevation: 10,
+              },
+              web: {
+                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                backdropFilter: 'blur(30px) saturate(140%)',
+                borderStyle: 'solid',
+              },
+            }),
           },
-          tabBarBackground: () => <GlassBackground />, // Đơn giản hóa
+          tabBarBackground: () => (
+            Platform.OS !== 'web' && (
+              <BlurView
+                intensity={80}
+                style={{
+                  ...StyleSheet.absoluteFillObject,
+                  borderRadius: 32,
+                  overflow: 'hidden',
+                }}
+                tint="dark"
+              />
+            )
+          ),
           tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: '700',
-            marginBottom: Platform.OS === 'ios' ? 10 : 6,
-            letterSpacing: -0.2,
+            fontSize: 10,
+            fontWeight: '600',
+            marginTop: 2,
           },
           tabBarIcon: ({ focused, color, size }) => {
             return (
-              <TabIcon 
-                focused={focused}
-                name={focused ? tabConfig.iconActive : tabConfig.iconInactive}
-                color={color}
-                size={size}
-                config={tabConfig}
-              />
+              <View style={{ alignItems: 'center' }}>
+                <Ionicons
+                  name={focused ? tabConfig.iconActive : tabConfig.iconInactive}
+                  size={24}
+                  color={color}
+                />
+                {routeName === 'cart' && itemCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{itemCount}</Text>
+                  </View>
+                )}
+              </View>
             );
           },
         };
       }}
     >
-      <Tabs.Screen 
-        name="index" 
+      <Tabs.Screen
+        name="index"
         options={{
           title: TAB_CONFIGS.index.label,
-        }} 
+        }}
       />
-      <Tabs.Screen 
-        name="store" 
+      <Tabs.Screen
+        name="store"
         options={{
           title: TAB_CONFIGS.store.label,
-        }} 
+        }}
       />
-      <Tabs.Screen 
-        name="cart" 
+      <Tabs.Screen
+        name="cart"
         options={{
           title: TAB_CONFIGS.cart.label,
-        }} 
+          href: null, // Hide from tab bar
+        }}
       />
-      <Tabs.Screen 
-        name="profile" 
+      <Tabs.Screen
+        name="profile"
         options={{
           title: TAB_CONFIGS.profile.label,
-        }} 
+        }}
       />
     </Tabs>
   );
 }
 
-// ĐƠN GIẢN HÓA BACKGROUND (bỏ Svg phức tạp)
-function GlassBackground() {
-  return (
-    <BlurView
-      intensity={90}
-      tint="systemUltraThinMaterial"
-      style={{
-        flex: 1,
-        borderTopWidth: 0.5,
-        borderTopColor: 'rgba(255, 255, 255, 0.3)',
-      }}
-    >
-      {/* Top reflection line */}
-      <View style={{
-        height: 1,
-        backgroundColor: 'rgba(255, 255, 255, 0.4)',
-      }} />
-    </BlurView>
-  );
-}
-
-// TAB ICON ĐƠN GIẢN HÓA
-function TabIcon({ focused, name, color, size, config }: any) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  
-  useEffect(() => {
-    if (focused) {
-      Animated.spring(scaleAnim, {
-        toValue: 1.2,
-        tension: 200,
-        friction: 6,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 200,
-        friction: 10,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [focused]);
-  
-  return (
-    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-      {/* Glow effect khi active */}
-      {focused && (
-        <Animated.View
-          style={{
-            position: 'absolute',
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: config.glow,
-            opacity: 0.4,
-            transform: [{ scale: scaleAnim }],
-          }}
-        />
-      )}
-      
-      {/* Icon container */}
-      <Animated.View
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 18,
-          backgroundColor: focused ? config.active : 'transparent',
-          justifyContent: 'center',
-          alignItems: 'center',
-          transform: [{ scale: scaleAnim }],
-        }}
-      >
-        <Ionicons 
-          name={name} 
-          size={size * 0.9} 
-          color={focused ? '#FFFFFF' : color}
-        />
-      </Animated.View>
-    </View>
-  );
-}
+const styles = StyleSheet.create({
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    backgroundColor: '#d70018',
+    borderRadius: 10,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'white',
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 9,
+    fontWeight: 'bold',
+    paddingHorizontal: 2,
+  },
+});
